@@ -1,0 +1,76 @@
+[
+  {
+    "file": "q01_contains_duplicate.py",
+    "id": 1,
+    "title": "Contains Duplicate",
+    "difficulty": "easy",
+    "topics": [
+      "arrays",
+      "hash-set"
+    ],
+    "target_minutes": [
+      10,
+      15
+    ],
+    "entry_point": "contains_duplicate"
+  },
+  {
+    "file": "q02_valid_palindrome.py",
+    "id": 2,
+    "title": "Valid Palindrome",
+    "difficulty": "easy",
+    "topics": [
+      "strings",
+      "two-pointers"
+    ],
+    "target_minutes": [
+      15,
+      20
+    ],
+    "entry_point": "is_palindrome"
+  },
+  {
+    "file": "q03_two_sum.py",
+    "id": 3,
+    "title": "Two Sum",
+    "difficulty": "easy",
+    "topics": [
+      "arrays",
+      "hash-map"
+    ],
+    "target_minutes": [
+      15,
+      20
+    ],
+    "entry_point": "two_sum"
+  },
+  {
+    "file": "q04_valid_brackets.py",
+    "id": 4,
+    "title": "Valid Brackets",
+    "difficulty": "easy",
+    "topics": [
+      "stack"
+    ],
+    "target_minutes": [
+      15,
+      20
+    ],
+    "entry_point": "valid_brackets"
+  },
+  {
+    "file": "q05_merge_sorted_lists.py",
+    "id": 5,
+    "title": "Merge Sorted Lists",
+    "difficulty": "easy",
+    "topics": [
+      "arrays",
+      "two-pointers"
+    ],
+    "target_minutes": [
+      15,
+      20
+    ],
+    "entry_point": "merge_sorted"
+  }
+]

@@ -1,0 +1,9 @@
+{
+  "file": "q00_replace_title.py",
+  "id": 0,
+  "title": "REPLACE: question title",
+  "difficulty": "easy",
+  "topics": ["replace-topic"],
+  "target_minutes": [15, 20],
+  "entry_point": "answer"
+}
