@@ -82,3 +82,15 @@ You only need to edit the exercise files during practice. Each prompt has one so
 The next batch is `days/day_02/`, starting with `q06_…py`. Stable IDs keep your attempt history connected as the bank grows.
 
 [Curriculum](CURRICULUM.md) · [Design document](docs/DESIGN.md) · [Authoring guide](CONTRIBUTING.md) · [Exercise template](templates/question/exercise.py)
+
+## Daily email automation
+
+The optional [mailer](docs/MAILER.md) sends five shared questions daily through a dedicated Gmail account, using Python in GitHub Actions and a free external timer. The repository can stay public; recipient data lives in a private Google Sheet. Replies support `PAUSE`, `PAUSE 7`, `RESUME`, and `STOP`. Emails continue without answers; this version does not track completion.
+
+Preview an email locally without credentials or network access:
+
+```bash
+python3 -m mailer preview
+```
+
+Follow the [setup and activation guide](docs/MAILER.md) to configure Gmail, free-tier Gemini, private storage, and the scheduler. Sending is disabled in Actions until configured. The existing exercise files and practice commands remain independent.

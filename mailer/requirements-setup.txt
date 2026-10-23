@@ -1,0 +1,3 @@
+# Only local, interactive OAuth setup needs this dependency.
+# The deployed mailer and its tests use Python's standard library.
+google-auth-oauthlib>=1.2,<2

@@ -1,0 +1,7 @@
+{
+  "timezone": "America/Los_Angeles",
+  "send_time": "08:15",
+  "days_per_stage": 14,
+  "max_subscribers": 25,
+  "model": "gemini-3.1-flash-lite"
+}

@@ -1,6 +1,6 @@
 # Coding Interview Practice — Design Document
 
-Status: implemented single-file exercise workflow, 2026-10-20.
+Status: implemented single-file exercise workflow, 2026-10-20. Optional daily email extension added 2026-10-22; see [mailer design and setup](MAILER.md).
 
 ## Purpose and scope
 
