@@ -202,7 +202,7 @@ def render_batch(batch, config):
                       f"{q['difficulty'].title()} | {', '.join(q['topics'])} | {q['target_minutes'][0]}–{q['target_minutes'][1]} min",
                       q["prompt"], "Constraints: " + q["constraints"], "Examples:"])
         lines.extend(f"  Input: {e['input']}\n  Output: {e['output']}" for e in q["examples"])
-    lines.extend(["", "Before coding, explain your approach. Afterwards, explain correctness and complexity.",
+    lines.extend(["",
                   "", "--- Email preferences ---", help_text(config)])
     return "\n\n".join(lines)
 

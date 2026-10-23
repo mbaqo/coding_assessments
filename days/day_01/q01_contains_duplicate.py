@@ -22,9 +22,6 @@ Aim for O(n) time, where n is the list length. Consider what the extra space cos
 Each input list has at most 100,000 items. Integers are in the range [-10^12, 10^12].
 Inputs satisfy the types and conditions above; invalid-input handling is not required.
 
-Before coding, explain a simple approach and its cost. After solving, explain your
-invariant, time and extra space complexity, and one boundary case you initially missed.
-Tests check behavior; review your code separately to confirm the complexity target.
 """
 
 def contains_duplicate(nums: list[int]) -> bool:

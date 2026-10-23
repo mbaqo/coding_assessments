@@ -23,10 +23,6 @@ it. Aim for O(n) time and O(n) extra space.
 
 Each input list has at most 100,000 items. Integers are in the range [-10^12, 10^12].
 Inputs satisfy the types and conditions above; invalid-input handling is not required.
-
-Before coding, explain a simple approach and its cost. After solving, explain your
-invariant, time and extra space complexity, and one boundary case you initially missed.
-Tests check behavior; review your code separately to confirm the complexity target.
 """
 
 from __future__ import annotations

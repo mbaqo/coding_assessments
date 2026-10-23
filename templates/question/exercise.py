@@ -28,8 +28,6 @@ explain exact behavior, including accepted alternative outputs.
 
 <Time and extra space target; define variables and output space.>
 
-Explain a baseline, your invariant or correctness argument, and complexity.
-Tests check behavior; code review checks the complexity target.
 """
 from __future__ import annotations
 
@@ -39,11 +37,9 @@ def answer(nums: list[int]) -> bool:
     raise NotImplementedError
 
 
-# Reflection (fill in after solving):
-# Approach / invariant:
+
 # Time complexity:
 # Extra space:
-# Mistake or edge case to remember:
 
 
 if __name__ == "__main__":

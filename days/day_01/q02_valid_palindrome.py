@@ -23,10 +23,6 @@ O(1) extra space, apart from a few variables.
 
 The input string has at most 100,000 characters. Inputs satisfy the types and conditions
 above; invalid-input handling is not required.
-
-Before coding, explain a simple approach and its cost. After solving, explain your
-invariant, time and extra space complexity, and one boundary case you initially missed.
-Tests check behavior; review your code separately to confirm the complexity target.
 """
 
 def is_palindrome(text: str) -> bool:
