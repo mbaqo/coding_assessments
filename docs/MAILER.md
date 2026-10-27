@@ -8,7 +8,7 @@ Python runs in GitHub Actions. A free external timer dispatches the workflow, av
 
 ## Automatic question supply
 
-Once the API credentials and daily timer below are configured, no developer session or manual request for questions is needed. Every scheduled ` -pythonm mailer run`:
+Once the API credentials and daily timer below are configured, no developer session or manual request for questions is needed. Every scheduled `python -m mailer run`:
 
 1. Processes replies and determines each active person's next batch.
 2. Reuses that batch from the private Sheet if it already exists.
@@ -89,10 +89,12 @@ Only one writer is supported. GitHub Actions serializes mailer runs. Before loca
 
 Use your existing Google login to create an API key in [Google AI Studio](https://aistudio.google.com/). Select a **free-tier API project with no linked billing account**. Gemini app subscriptions and API project quotas are separate; inspect the project's active limits rather than assuming your subscription increases them.
 
-Set the API key locally without putting it in shell history:
+Set the API key locally without putting it in shell history. This works in Bash and zsh; run the prompt and `read` lines, enter your key, then run the remaining lines:
 
 ```bash
-read -r -s -p 'Gemini API key: ' GEMINI_API_KEY
+printf 'Gemini API key: '
+read -r -s GEMINI_API_KEY
+printf '\n'
 export GEMINI_API_KEY
 export MAILER_GEMINI_FREE_TIER_CONFIRMED=true
 python -m mailer check-model
