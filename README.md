@@ -85,7 +85,11 @@ The next batch is `days/day_02/`, starting with `q06_…py`. Stable IDs keep you
 
 ## Daily email automation
 
-The optional [mailer](docs/MAILER.md) sends five shared questions daily through a dedicated Gmail account, using Python in GitHub Actions and a free external timer. The repository can stay public; recipient data lives in a private Google Sheet. Replies support `PAUSE`, `PAUSE 7`, `RESUME`, and `STOP`. Emails continue without answers; this version does not track completion.
+The optional [mailer](docs/MAILER.md) sends each person their next five questions daily through a dedicated Gmail account, using Python in GitHub Actions and a free external timer. The repository can stay public; recipient data lives in a private Google Sheet. Replies support `PAUSE`, `PAUSE 7`, `RESUME`, and `STOP`. Each person progresses independently through saved batches: pausing keeps their place, and resuming continues there. New subscribers start at batch 1. Emails continue without answers; only mailing position is tracked, not question completion.
+
+With the API credentials and timer configured, scheduled runs automatically ask Gemini for the next five questions whenever someone reaches the end of the saved batches. Questions are saved in the Sheet; no developer session or new repository exercise files are needed. If generation is unavailable, the mailer sends five review questions and tries generation again the next day it needs a new batch.
+
+The public homepage and privacy policy are in `site/`. Follow the [GitHub Pages publishing guide](docs/WEBSITE.md) to publish them and use their URLs in Google OAuth Branding.
 
 Preview an email locally without credentials or network access:
 

@@ -5,7 +5,7 @@ from datetime import timedelta
 from zoneinfo import ZoneInfo
 
 from .domain import (MailerError, ProviderError, apply_command, date_time, expire_pauses, help_text,
-                     iso, make_email, message_id, parse_reply, render_batch)
+                     iso, make_email, message_id, next_batch_number, parse_reply, question_sequence, render_batch)
 from .generation import generate_batch, review_batch
 from .providers import SendRejected
 
@@ -68,7 +68,7 @@ class Runner:
                 self.report["uncertain"] += 1
         self.save()
 
-    def deliver(self, key, subscriber, kind, subject, body, day):
+    def deliver(self, key, subscriber, kind, subject, body, day, batch_date=None):
         existing = self.state["deliveries"].get(key)
         if existing and existing["status"] in ("sent", "pending", "uncertain", "cancelled"):
             return
@@ -77,6 +77,8 @@ class Runner:
         raw = make_email(self.gmail.sender, subscriber, key, subject, body)
         record = {"subscriber": subscriber["id"], "date": day, "kind": kind,
                   "message_id": message_id(key, self.gmail.sender), "status": "pending"}
+        if kind == "daily":
+            record["batch_date"] = batch_date or day
         self.state["deliveries"][key] = record
         self.save()  # A crash after this point must reconcile, never blindly resend.
         try:
@@ -108,8 +110,29 @@ class Runner:
         active = [s for s in self.state["subscribers"].values() if s["status"] == "active"]
         if len(active) > self.config.max_subscribers:
             raise MailerError("Active list exceeds the configured subscriber limit.")
-        if not active:
-            return self.report
+        for subscriber in active:
+            key = f"daily:{day}:{subscriber['id']}"
+            existing = self.state["deliveries"].get(key)
+            if existing and existing["status"] in ("sent", "pending", "uncertain", "cancelled"):
+                continue
+            # Resolve an ambiguous send before moving this person through the sequence.
+            if any(d["subscriber"] == subscriber["id"] and d["kind"] == "daily"
+                   and d["status"] in ("pending", "uncertain") for d in self.state["deliveries"].values()):
+                continue
+            number = next_batch_number(self.state, subscriber)
+            sequence = question_sequence(self.state)
+            if number <= len(sequence):
+                batch = sequence[number - 1]
+            else:
+                batch = self.prepare_batch(day)
+            self.report["fallback"] |= not batch["fresh"]
+            subject = f"Interview practice — {day} — batch {number}" + (" (review)" if not batch["fresh"] else "")
+            body = render_batch(dict(batch, date=day, number=number), self.config)
+            self.deliver(key, subscriber, "daily", subject, body, day, batch["date"])
+        return self.report
+
+    def prepare_batch(self, day):
+        """Extend the shared library only when someone reaches its end."""
         if day not in self.state["batches"]:
             # Persist fallback first: a killed process cannot spend more model calls on a rerun.
             self.state["batches"][day] = review_batch(self.state, day)
@@ -123,10 +146,4 @@ class Runner:
             else:
                 self.state["batches"][day] = batch
             self.save()
-        batch = self.state["batches"][day]
-        self.report["fallback"] = not batch["fresh"]
-        subject = f"Interview practice — {day}" + (" (review)" if not batch["fresh"] else "")
-        body = render_batch(batch, self.config)
-        for subscriber in active:
-            self.deliver(f"daily:{day}:{subscriber['id']}", subscriber, "daily", subject, body, day)
-        return self.report
+        return self.state["batches"][day]

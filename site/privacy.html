@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="How Interview Practice accesses, uses, stores, and shares data for its personal coding practice mailing list.">
+  <meta name="theme-color" content="#173e35">
+  <title>Privacy policy — Interview Practice</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header wrap">
+    <a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true">ip.</span> Interview Practice</a>
+    <nav aria-label="Main navigation"><a href="index.html#how-it-works">How it works</a><a href="privacy.html" aria-current="page">Privacy</a><a href="mailto:prepaiautomation@gmail.com">Contact</a></nav>
+  </header>
+  <main id="main" class="policy wrap">
+    <p class="eyebrow">Your information</p>
+    <h1>Privacy policy</h1>
+    <p class="policy-date">Last updated: October 26, 2026</p>
+    <p class="lead">Interview Practice is a personal coding practice mailing list operated by the organizer reachable at <a href="mailto:prepaiautomation@gmail.com">prepaiautomation@gmail.com</a>. This policy covers the mailing automation and this public website.</p>
+    <div class="policy-summary"><strong>The essentials</strong><p>We keep your email preferences and place in the mailing sequence. We do not track completed questions, grade answers, or send your emails or subscriber records to the AI question generator.</p></div>
+    <section aria-labelledby="access"><h2 id="access">1. Information we access and store</h2>
+      <p>The organizer adds invited recipients to the mailing list. For each subscriber, the mailer stores their email address, a subscriber identifier, a reply-routing token, enrollment time, subscription status, any pause expiry, and the most recent command ordering information.</p>
+      <p>It also stores recognized commands and their message identifiers and receipt times, command-confirmation text, delivery dates and status, outgoing message identifiers, and references to the question batches sent. These records let it calculate your next batch and avoid duplicate sends. Generated questions are saved for reuse.</p>
+      <p>The mailer reads recent messages in the sending Gmail account to find subscription commands. This scan can include unrelated messages in that account; their contents are processed temporarily and ignored if they are not recognized command replies. Full incoming email bodies are not copied into the mailing-state spreadsheet. Received and sent emails remain in Gmail under that account’s retention and deletion settings.</p>
+      <p>Answers, exercise-completion flags, grades, and mastery scores are not stored by the mailer. If you send an answer by email, it can still remain in the sending account’s mailbox like any other received message.</p>
+    </section>
+    <section aria-labelledby="permissions"><h2 id="permissions">2. Google account permissions</h2>
+      <p>Only the organizer authorizes a Google account. Recipients do not grant access to their own inboxes or spreadsheets.</p>
+      <ul>
+        <li><strong>Gmail read access:</strong> to detect reply commands and check Sent mail when a delivery result is uncertain.</li>
+        <li><strong>Gmail send access:</strong> to send question batches, preference confirmations, and organizer-requested setup emails.</li>
+        <li><strong>Google Sheets access:</strong> to create, read, and update the private spreadsheet containing mailing state. This permission is broader than one spreadsheet; the application is configured to use its mailing-state spreadsheet.</li>
+      </ul>
+      <p>Google account credentials are stored privately for local setup and in GitHub Actions secrets for scheduled operation. They are not included in this website.</p>
+    </section>
+    <section aria-labelledby="purpose"><h2 id="purpose">3. How the information is used</h2>
+      <p>Mailing information is used to send your next questions, honor pause and stop commands, confirm preference changes, prevent repeat processing, and investigate delivery or support issues. The organizer can access the private spreadsheet and sending mailbox to administer the service and respond to your requests.</p>
+      <p>Subscriber information is not sold, used for advertising, or used to build profiles for unrelated purposes. Use and transfer of information received from Google APIs must follow the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including its Limited Use requirements.</p>
+    </section>
+    <section aria-labelledby="providers"><h2 id="providers">4. Service providers and AI</h2>
+      <ul>
+        <li><strong>Google Gmail and Sheets</strong> process email and store the private mailing records.</li>
+        <li><strong>GitHub Actions</strong> runs the automation and processes mailing data during each run. The application writes aggregate counts and sanitized errors to its normal run logs, rather than addresses or message bodies.</li>
+        <li><strong>Google Gemini API</strong> receives curriculum instructions and previously generated question content to draft and review questions. Subscriber addresses, incoming email content, subscription records, and OAuth credentials are not included in these prompts.</li>
+        <li><strong>The external scheduling service</strong> triggers GitHub Actions. The application does not send subscriber records or email bodies to that scheduler.</li>
+      </ul>
+      <p>Providers handle data under their own terms and privacy practices. The Gemini free service may use submitted question-generation content and responses to improve Google products, as described in the <a href="https://ai.google.dev/gemini-api/terms">Gemini API terms</a>. Google user data obtained through Gmail or Sheets is not supplied to Gemini for model training or question generation.</p>
+    </section>
+    <section aria-labelledby="retention"><h2 id="retention">5. Retention, stopping, and deletion</h2>
+      <p>There is currently no automatic deletion schedule for mailing records. They remain in the private spreadsheet until the organizer removes them. Stopped subscribers’ records are retained to remember the stop request and preserve their place if they choose to reenroll. Emails and any operator-created backups can remain separately until removed.</p>
+      <p><code>PAUSE</code> holds your place; <code>RESUME</code> restarts a paused subscription. <code>STOP</code> or <code>UNSUBSCRIBE</code> stops daily question emails after the command is processed, but does not delete your data. A command confirmation may still be sent.</p>
+      <p>To request access, correction, or deletion of your mailing records and related messages, contact <a href="mailto:prepaiautomation@gmail.com?subject=Interview%20Practice%20privacy%20request">prepaiautomation@gmail.com</a>, preferably from your enrolled address. The organizer handles these requests manually, including related records and any backups they control. Deletion does not recall messages already delivered to recipients; provider-controlled copies are subject to the provider’s policies.</p>
+      <p>The organizer can revoke the app’s access through <a href="https://myaccount.google.com/connections">Google Account connections</a>. Revoking access stops future API access but does not automatically remove existing emails or spreadsheet records.</p>
+    </section>
+    <section aria-labelledby="website"><h2 id="website">6. This public website</h2>
+      <p>These pages do not include analytics, advertising, tracking pixels, forms, cookies, or browser storage added by this project. Clicking an email link opens your email application; it does not submit a form to this website.</p>
+      <p>The website is intended for GitHub Pages hosting. GitHub logs visitors’ IP addresses for security purposes when serving Pages sites. See the <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub Privacy Statement</a>. External links are governed by the destination’s own privacy practices.</p>
+    </section>
+    <section aria-labelledby="updates"><h2 id="updates">7. Updates and contact</h2>
+      <p>Changes to this policy will appear here with an updated date. If the app’s use of Google user data changes, the organizer must update the disclosures and obtain any required consent before the new use.</p>
+      <p>For privacy questions or support, email <a href="mailto:prepaiautomation@gmail.com">prepaiautomation@gmail.com</a>.</p>
+    </section>
+  </main>
+  <footer class="site-footer wrap"><a href="index.html">← Back to Interview Practice</a><a href="mailto:prepaiautomation@gmail.com">Contact the organizer</a></footer>
+</body>
+</html>

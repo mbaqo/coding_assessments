@@ -52,7 +52,7 @@ def validate_state(state):
                 raise ValueError()
             if delivery["subscriber"] not in state["subscribers"] or delivery["kind"] not in ("daily", "notification", "test"):
                 raise ValueError()
-            if delivery["kind"] == "daily" and delivery["date"] not in state["batches"]:
+            if delivery["kind"] == "daily" and delivery.get("batch_date", delivery["date"]) not in state["batches"]:
                 raise ValueError()
             if not isinstance(delivery["message_id"], str) or not delivery["message_id"].startswith("<practice."):
                 raise ValueError()

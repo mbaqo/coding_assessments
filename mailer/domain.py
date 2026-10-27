@@ -109,9 +109,24 @@ STAGES = [
 ]
 
 
+def question_sequence(state):
+    """A reusable curriculum ordered by creation date; review emails are excluded."""
+    return [b for _, b in sorted(state["batches"].items()) if b["fresh"]]
+
+
+def next_batch_number(state, subscriber):
+    """Infer mailing position from confirmed deliveries, never from solved questions.
+
+    Old records used the send date as the batch date. Keeping that default also
+    lets existing subscribers continue after their last delivered fresh batch.
+    """
+    received = {d.get("batch_date", d["date"]) for d in state["deliveries"].values()
+                if d["subscriber"] == subscriber["id"] and d["kind"] == "daily" and d["status"] == "sent"}
+    return max((i for i, b in enumerate(question_sequence(state), 1) if b["date"] in received), default=0) + 1
+
+
 def syllabus(state, config):
-    delivered = {d["date"] for d in state["deliveries"].values() if d["status"] == "sent" and d["kind"] == "daily"}
-    fresh = sum(b["fresh"] and day in delivered for day, b in state["batches"].items())
+    fresh = len(question_sequence(state))
     index = min(fresh // config.days_per_stage, len(STAGES) - 1)
     name, topics = STAGES[index]
     mediums = 0 if index == 0 else 2 if index == 1 else 3
@@ -181,7 +196,8 @@ HELP = ("Reply with a command on the FIRST nonempty line:\n"
         "RESUME — resume a paused subscription\nSTOP or UNSUBSCRIBE — stop indefinitely\n"
         "HELP — show these instructions\n\n"
         "Replies are checked at scheduled runs, normally 08:15 and 08:45 America/Los_Angeles.\n"
-        "No answers are required. Answers and learning progress are not tracked.\n"
+        "Each active day brings your next five questions. PAUSE keeps your place; RESUME continues there.\n"
+        "Only your mailing position is tracked, not answers or completed questions.\n"
         "After STOP, ask the organizer to explicitly enroll you again.")
 
 
@@ -195,6 +211,8 @@ def render_batch(batch, config):
     label = "Daily practice" if batch["fresh"] else "Review practice — saved questions"
     lines = [f"{label} · {batch['date']}", f"Focus: {batch['stage']}",
              "Five questions to practice at your own pace"]
+    if batch.get("number"):
+        lines.insert(1, f"Your batch: {batch['number']}")
     if not batch["fresh"]:
         lines.append("Today's new batch was unavailable. These are saved review questions and may repeat earlier emails.")
     for index, q in enumerate(batch["questions"], 1):

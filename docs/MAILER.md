@@ -1,8 +1,25 @@
 # Daily interview email automation
 
-The public repository contains the code and curriculum. A dedicated Gmail account sends five questions to each active recipient. Everyone receives the same batch; joining recipients enter the current syllabus. There are no learner accounts and no completion tracking. Not answering never pauses delivery.
+The public repository contains the code and curriculum. A dedicated Gmail account sends each active recipient their next five questions daily. Each person has their own position in a shared question sequence: pausing preserves that position, and new subscribers start at batch 1. There are no learner accounts and no completion tracking. Not answering never pauses delivery.
+
+For example, if both people receive batch 1 and one pauses for two days, the other receives batches 2 and 3. When the paused person replies `RESUME`, they receive batch 2 while the other receives batch 4. There is no catch-up burst. Commands are parsed by Python; AI generates the questions, not subscription decisions.
 
 Python runs in GitHub Actions. A free external timer dispatches the workflow, avoiding GitHub's 60-day inactivity cutoff for scheduled workflows in public repositories. A private Google Sheet stores mailing state. Do not make that Sheet public.
+
+## Automatic question supply
+
+Once the API credentials and daily timer below are configured, no developer session or manual request for questions is needed. Every scheduled ` -pythonm mailer run`:
+
+1. Processes replies and determines each active person's next batch.
+2. Reuses that batch from the private Sheet if it already exists.
+3. If someone needs a batch beyond the saved sequence, calls Gemini to draft exactly five questions, validates them, requests an AI review, and saves the approved batch before sending it.
+4. Sends each person their next batch and records the confirmed delivery.
+
+Generated email questions live in the Sheet; you do not need to create new `days/day_NN/` repository folders. The runtime reads `CURRICULUM.md` itself to guide generation. People at the same position reuse the same questions, keeping generation to at most one new batch per calendar day for the group.
+
+If Gemini is unavailable or a batch fails validation/review, the mailer sends five saved review questions (using the bundled five if no generated questions exist). These may repeat and do not advance the person's position. It automatically tries generation again on the next day it needs a new batch. This keeps question supply available during an AI outage, but cannot guarantee fresh questions every day or delivery during an email/storage outage.
+
+The workflow only has a `workflow_dispatch` trigger: the external timer in step 6 must be enabled for unattended runs. The code in this repository alone does not activate that timer or configure API credentials.
 
 ## Try it offline
 
@@ -27,6 +44,8 @@ Use a separate Gmail account for the mailer, with a primary username of at most 
 3. Before unattended operation, change the publishing status to **In production**. Gmail-scoped refresh tokens issued while an external app is in Testing normally expire after seven days. Reauthorize after switching status. Personal-use authorization may display an unverified-app notice; production status does not itself mean Google has verified the app.
 4. Create an OAuth client of type **Desktop app**, download its JSON, and save it as `.mailer-private/client.json`. This directory is ignored by Git.
 5. Authorize locally:
+
+If Google requires a homepage and privacy-policy URL before switching to production, publish the included `site/` pages using the [GitHub Pages guide](WEBSITE.md), then enter the live URLs on the Branding page.
 
 ```bash
 python3 -m venv .venv
@@ -61,6 +80,8 @@ export MAILER_SHEET_ID='your-spreadsheet-id'
 ```
 
 The `MailerState` tab stores one JSON record per row, including subscriptions, received command IDs, saved batches, and delivery status. It uses raw values, so text cannot become a spreadsheet formula. Do not edit the generated rows during operation. Malformed or missing state fails closed and is never automatically reset.
+
+Mailing position is calculated from each person's confirmed daily deliveries. Each new daily delivery records the saved batch's creation date separately from its send date. Review and setup-test emails do not advance that position. Existing state needs no manual migration: older records use their send date to identify the batch, and existing subscribers continue after their last confirmed fresh batch. This does not retroactively recover batches skipped before this change. No answers, solved-question flags, or mastery scores are stored by the mailer.
 
 Only one writer is supported. GitHub Actions serializes mailer runs. Before local administrative changes, pause the external timer, wait for any running workflow to finish, make the change, then restore the timer. Do not run the CLI simultaneously from another machine. Keep a private backup of the Sheet before manual repairs.
 
@@ -101,7 +122,7 @@ python -m mailer send-test --email 'your.personal.address@example.com'
 python -m mailer run
 ```
 
-`run` is live: it processes replies and, if the configured time has passed, sends today's batch to active recipients. Before the configured time it only processes commands and confirmations. It does not backfill missed calendar days.
+`run` is live: it processes replies and, if the configured time has passed, sends each active recipient their next batch. Before the configured time it only processes commands and confirmations. It sends at most one daily email per person per local calendar day, without backfilling missed calendar days. `subscribers list` shows each person's status and next batch number.
 
 Add each invited recipient with the same `subscribers add` command. The default cap is 25 non-stopped subscribers. Do not enroll addresses without consent. No public signup endpoint exists in this version.
 
@@ -170,9 +191,9 @@ Put the command on the **first nonempty line** of a reply. Replies must come fro
 
 | Command | Result |
 | --- | --- |
-| `PAUSE` | Indefinite pause |
+| `PAUSE` | Indefinite pause, keeping your place |
 | `PAUSE N` | Pause for 1–365 days, measured as 24-hour intervals from receipt |
-| `RESUME` | Resume a paused subscription |
+| `RESUME` | Resume a paused subscription at your next batch |
 | `STOP` or `UNSUBSCRIBE` | Stop indefinitely; no automatic restart |
 | `HELP` | Send instructions and current status |
 
@@ -183,6 +204,8 @@ After a stop, the organizer can explicitly reenroll a consenting recipient:
 ```bash
 python -m mailer subscribers reenroll --email 'recipient@example.com'
 ```
+
+Reenrollment preserves the recipient's mailing position. `RESUME` alone does not undo `STOP`; use `PAUSE` for a break you want to end yourself.
 
 Reenrollment rotates the reply token, invalidating commands sent to old reply addresses. Stopping does not erase mailing history. Completion history is never collected.
 
@@ -198,7 +221,7 @@ python -m mailer resolve-delivery --key 'KEY_FROM_PRIVATE_SHEET' --resolution re
 python -m mailer resolve-delivery --key 'KEY_FROM_PRIVATE_SHEET' --resolution cancel
 ```
 
-Choose **one** resolution. `retry` only retries a daily delivery on its original calendar day; past days are not backfilled. A later successful reconciliation takes precedence over your requested resolution. Incorrectly choosing retry can create a duplicate, so do it only after checking. Other recipients and later dates can continue despite an uncertain delivery.
+Choose **one** resolution. `retry` allows another attempt at the next eligible run; on a later date, the recipient still receives their next unsent batch. A successful reconciliation takes precedence over your requested resolution. Incorrectly choosing retry can create a duplicate, so do it only after checking. An uncertain daily delivery holds that recipient's sequence until resolved; other recipients continue. Marking a delivery `sent` advances their position, while `retry` and `cancel` do not. Cancelling suppresses another attempt on the original date.
 
 An unreadable inbox, invalid Sheet, or failed state write stops the run rather than ignoring a possible unsubscribe request. Authentication and network failures do not change subscription status. Disable `MAILER_ENABLED` for an operator-wide emergency stop; individual users should use reply commands.
 
@@ -213,7 +236,7 @@ An unreadable inbox, invalid Sheet, or failed state write stops the run rather t
 | `mailer/engine.py` | Poll → commands → reconcile → generate → deliver |
 | `mailer/__main__.py` | Local setup, administration, preview, and run commands |
 
-The shared syllabus spends 14 successfully delivered fresh batches at each stage. Foundations use five easy questions; core patterns use three easy and two medium; later stages use two easy review questions and three mediums. After advanced patterns, mixed practice continues. Saved review batches and days with no active recipients do not advance the syllabus. This measures curriculum exposure, not learning or mastery.
+The shared question sequence contains 14 fresh batches at each stage. Foundations use five easy questions; core patterns use three easy and two medium; later stages use two easy review questions and three mediums. After advanced patterns, mixed practice continues. A new batch is generated only when an active recipient reaches the end of the saved sequence; people further behind reuse the saved batches. Each person's stage therefore follows their own mailing position. Review emails and days without delivery do not advance that person's position. This measures curriculum exposure, not learning or mastery.
 
 The generation review is an additional model check, not execution-based proof of correctness. No generated code is executed. Deterministic validation and model review reduce malformed content; they cannot eliminate ambiguous or incorrect problems.
 

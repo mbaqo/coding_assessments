@@ -117,10 +117,8 @@ class DomainTests(unittest.TestCase):
         self.assertIn("&lt;script&gt;", message.get_body(preferencelist=("html",)).get_content())
         self.assertEqual(message["Reply-To"], reply_address(SENDER, self.subscriber))
 
-    def test_curriculum_advances_only_for_fresh_delivered_batches(self):
+    def test_curriculum_sequence_advances_only_for_saved_fresh_batches(self):
         self.state["batches"]["2026-10-20"] = {"fresh": True}
-        self.assertEqual(syllabus(self.state, Config(days_per_stage=1))["stage"], "Foundations")
-        self.state["deliveries"]["x"] = {"date": "2026-10-20", "status": "sent", "kind": "daily"}
         self.assertEqual(syllabus(self.state, Config(days_per_stage=1))["stage"], "Core patterns")
         self.state["batches"]["2026-10-20"]["fresh"] = False
         self.assertEqual(syllabus(self.state, Config(days_per_stage=1))["stage"], "Foundations")

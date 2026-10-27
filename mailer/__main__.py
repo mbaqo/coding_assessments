@@ -10,7 +10,7 @@ import sys
 from zoneinfo import ZoneInfo
 
 from .domain import (UTC, Config, MailerError, add_subscriber, address, fallback_questions,
-                     iso, new_state, render_batch)
+                     iso, new_state, next_batch_number, render_batch)
 from .engine import Runner
 from .providers import SCOPES, Gemini, Gmail, GoogleAPI
 from .storage import SheetStore
@@ -103,7 +103,8 @@ def main(argv=None):
         if args.command == "subscribers":
             if args.operation == "list":
                 for subscriber in state["subscribers"].values():
-                    print(subscriber["email"], subscriber["status"], subscriber["pause_until"] or "")
+                    print(subscriber["email"], subscriber["status"], subscriber["pause_until"] or "",
+                          "next batch:", next_batch_number(state, subscriber))
             else:
                 if address(args.email) == sender:
                     raise MailerError("Use a recipient address different from the dedicated sending account.")
@@ -138,7 +139,7 @@ def main(argv=None):
                 record["status"] = {"sent": "sent", "retry": "failed", "cancel": "cancelled"}[args.resolution]
                 record["operator_resolved_at"] = iso(now)
             store.save(state)
-            print("Delivery resolution saved. Retry applies at the next eligible run; past daily batches are not backfilled.")
+            print("Delivery resolution saved. Each recipient continues from their confirmed mailing position at the next eligible run.")
             return 0
     except MailerError as error:
         print("Error: " + str(error), file=sys.stderr)

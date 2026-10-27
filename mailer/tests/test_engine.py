@@ -3,9 +3,12 @@ from datetime import timedelta
 from email import policy
 from email.parser import BytesParser
 import unittest
+import json
+from zoneinfo import ZoneInfo
 from unittest.mock import patch
 
-from mailer.domain import Config, MailerError, ProviderError, add_subscriber, fallback_questions, new_state
+from mailer.domain import (Config, MailerError, ProviderError, add_subscriber, fallback_questions,
+                           new_state, next_batch_number)
 from mailer.engine import Runner
 from mailer.providers import SendRejected
 from mailer.storage import validate_state
@@ -69,9 +72,11 @@ class FakeModel:
         if schema["type"] == "object":
             return {"approved": self.approved}
         qs = fallback_questions()
+        selection = json.loads(prompt.split("Shared syllabus: ")[1].split("\nRecent questions")[0])
         for i, q in enumerate(qs):
             q["title"] = f"Fresh exercise {self.calls} number {i}"
             q["prompt"] = f"Unique task {self.calls}, item {i}. " + q["prompt"]
+            q["difficulty"] = "medium" if i < selection["medium"] else "easy"
         return qs
 
 
@@ -97,6 +102,49 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(self.run_mailer(NOW + timedelta(days=1))["daily_sent"], 1)
         self.assertEqual(self.model.calls, 4)
         self.assertEqual(len(self.gmail.sent), 2)
+
+    def test_scheduled_runs_generate_for_weeks_without_manual_question_batches(self):
+        second = add_subscriber(self.store.data, "second@example.com", NOW)
+        for offset in range(35):
+            # The timer follows local 08:15, including the autumn DST change.
+            now = (NOW.astimezone(ZoneInfo(Config().timezone)) + timedelta(days=offset)).astimezone(NOW.tzinfo)
+            if offset == 3:
+                self.incoming("PAUSE", "pause", now)
+            if offset == 6:
+                self.incoming("RESUME", "resume", now)
+            report = self.run_mailer(now)
+            self.assertEqual(report["daily_sent"], 1 if 3 <= offset < 6 else 2)
+            self.assertFalse(report["fallback"])
+            # One new shared batch per day, even with people at different positions.
+            self.assertEqual(self.model.calls, 2 * (offset + 1))
+            self.assertEqual(self.run_mailer(now + timedelta(minutes=30))["daily_sent"], 0)
+            self.assertEqual(self.model.calls, 2 * (offset + 1))
+
+        self.assertEqual(next_batch_number(self.store.data, self.subscriber), 33)
+        self.assertEqual(next_batch_number(self.store.data, second), 36)
+        batches = sorted(self.store.data["batches"].items())
+        self.assertEqual(len(batches), 35)
+        for index, (_, batch) in enumerate(batches):
+            self.assertEqual(len(batch["questions"]), 5)
+            self.assertEqual(batch["stage"], ("Foundations" if index < 14 else
+                                              "Core patterns" if index < 28 else "Trees and search"))
+
+    def test_generation_recovers_automatically_after_multiple_days_unavailable(self):
+        self.model.fail = True
+        for offset in range(3):
+            report = self.run_mailer(NOW + timedelta(days=offset))
+            self.assertEqual(report["daily_sent"], 1)
+            self.assertTrue(report["fallback"])
+            self.assertTrue(report["generation_unavailable"])
+            self.assertEqual(len(list(self.store.data["batches"].values())[-1]["questions"]), 5)
+            self.assertEqual(next_batch_number(self.store.data, self.subscriber), 1)
+        self.assertEqual(self.model.calls, 3)
+        self.model.fail = False
+        report = self.run_mailer(NOW + timedelta(days=3))
+        self.assertEqual(report["daily_sent"], 1)
+        self.assertFalse(report["fallback"])
+        self.assertEqual(self.model.calls, 5)
+        self.assertEqual(next_batch_number(self.store.data, self.subscriber), 2)
 
     def test_one_shared_batch_with_private_individual_envelopes(self):
         add_subscriber(self.store.data, "second@example.com", NOW)
@@ -250,6 +298,110 @@ class EngineTests(unittest.TestCase):
         winter = NOW.replace(month=12, hour=16, minute=14)
         self.assertEqual(self.run_mailer(winter)["daily_sent"], 0)
         self.assertEqual(self.run_mailer(winter + timedelta(minutes=1))["daily_sent"], 1)
+
+    def daily_record(self, offset, subscriber=None):
+        day = (NOW + timedelta(days=offset)).date().isoformat()
+        return self.store.data["deliveries"][f"daily:{day}:{(subscriber or self.subscriber)['id']}"]
+
+    def test_pause_preserves_individual_sequence_and_stage(self):
+        second = add_subscriber(self.store.data, "second@example.com", NOW)
+        config = Config(days_per_stage=1)
+        self.run_mailer(config=config)
+        self.incoming("PAUSE", "pause", NOW + timedelta(days=1))
+        self.run_mailer(NOW + timedelta(days=1), config)
+        self.run_mailer(NOW + timedelta(days=2), config)
+        self.incoming("RESUME", "resume", NOW + timedelta(days=3))
+        self.assertEqual(self.run_mailer(NOW + timedelta(days=3), config)["daily_sent"], 2)
+        resumed = self.daily_record(3)
+        other = self.daily_record(3, second)
+        self.assertEqual(resumed["batch_date"], self.daily_record(1, second)["batch_date"])
+        self.assertNotEqual(resumed["batch_date"], other["batch_date"])
+        self.assertEqual(self.store.data["batches"][resumed["batch_date"]]["stage"], "Core patterns")
+        self.assertEqual(self.store.data["batches"][other["batch_date"]]["stage"], "Advanced patterns")
+        self.assertEqual(next_batch_number(self.store.data, self.subscriber), 3)
+        self.assertEqual(next_batch_number(self.store.data, second), 5)
+
+    def test_new_subscriber_starts_at_first_batch_without_generation(self):
+        self.run_mailer()
+        self.run_mailer(NOW + timedelta(days=1))
+        self.incoming("PAUSE", "pause", NOW + timedelta(days=2))
+        second = add_subscriber(self.store.data, "second@example.com", NOW + timedelta(days=2))
+        calls = self.model.calls
+        self.assertEqual(self.run_mailer(NOW + timedelta(days=2))["daily_sent"], 1)
+        self.assertEqual(self.model.calls, calls)
+        self.assertEqual(self.daily_record(2, second)["batch_date"], self.daily_record(0)["batch_date"])
+        self.assertEqual(self.run_mailer(NOW + timedelta(days=2, minutes=30))["daily_sent"], 0)
+
+    def test_timed_pause_and_stop_reenrollment_keep_position(self):
+        self.run_mailer()
+        self.incoming("PAUSE 2", "pause", NOW + timedelta(days=1))
+        self.assertEqual(self.run_mailer(NOW + timedelta(days=1))["daily_sent"], 0)
+        self.assertEqual(self.run_mailer(NOW + timedelta(days=2))["daily_sent"], 0)
+        self.assertEqual(self.run_mailer(NOW + timedelta(days=3))["daily_sent"], 1)
+        self.assertEqual(next_batch_number(self.store.data, self.subscriber), 3)
+        self.incoming("STOP", "stop", NOW + timedelta(days=4))
+        self.assertEqual(self.run_mailer(NOW + timedelta(days=4))["daily_sent"], 0)
+        self.incoming("RESUME", "resume", NOW + timedelta(days=5))
+        self.assertEqual(self.run_mailer(NOW + timedelta(days=5))["daily_sent"], 0)
+        add_subscriber(self.store.data, self.subscriber["email"], NOW + timedelta(days=6), reenroll=True)
+        self.run_mailer(NOW + timedelta(days=6))
+        self.assertEqual(next_batch_number(self.store.data, self.subscriber), 4)
+
+    def test_failed_delivery_keeps_questions_for_next_day(self):
+        self.gmail.send_error = SendRejected("Rejected.")
+        self.run_mailer()
+        self.assertEqual(next_batch_number(self.store.data, self.subscriber), 1)
+        self.gmail.send_error = None
+        self.run_mailer(NOW + timedelta(days=1))
+        self.assertEqual(self.daily_record(1)["batch_date"], self.daily_record(0)["batch_date"])
+        self.assertEqual(next_batch_number(self.store.data, self.subscriber), 2)
+        self.assertEqual(self.model.calls, 2)
+
+    def test_uncertain_delivery_blocks_only_that_subscribers_sequence(self):
+        self.gmail.send_error = ProviderError("Timed out.")
+        self.run_mailer()
+        self.gmail.send_error = None
+        second = add_subscriber(self.store.data, "second@example.com", NOW + timedelta(days=1))
+        self.assertEqual(self.run_mailer(NOW + timedelta(days=1))["daily_sent"], 1)
+        self.assertEqual(next_batch_number(self.store.data, self.subscriber), 1)
+        self.assertEqual(next_batch_number(self.store.data, second), 2)
+        # The organizer confirms the original send, as resolve-delivery does.
+        self.daily_record(0)["status"] = "sent"
+        self.run_mailer(NOW + timedelta(days=2))
+        self.assertEqual(next_batch_number(self.store.data, self.subscriber), 3)
+
+    def test_reconciliation_advances_position_once(self):
+        self.gmail.send_error = ProviderError("Timed out.")
+        self.gmail.accept_before_error = True
+        self.run_mailer()
+        self.assertEqual(next_batch_number(self.store.data, self.subscriber), 1)
+        self.gmail.send_error = None
+        self.run_mailer(NOW + timedelta(minutes=30))
+        self.assertEqual(next_batch_number(self.store.data, self.subscriber), 2)
+        self.run_mailer(NOW + timedelta(minutes=45))
+        self.assertEqual(next_batch_number(self.store.data, self.subscriber), 2)
+
+    def test_review_and_test_emails_do_not_advance_position(self):
+        self.run_mailer()
+        self.model.fail = True
+        self.run_mailer(NOW + timedelta(days=1))
+        self.assertEqual(next_batch_number(self.store.data, self.subscriber), 2)
+        self.model.fail = False
+        self.run_mailer(NOW + timedelta(days=2))
+        self.assertEqual(next_batch_number(self.store.data, self.subscriber), 3)
+        self.daily_record(2)["kind"] = "test"
+        self.assertEqual(next_batch_number(self.store.data, self.subscriber), 2)
+
+    def test_legacy_delivery_records_continue_after_last_received_batch(self):
+        self.run_mailer()
+        self.run_mailer(NOW + timedelta(days=1))
+        for record in self.store.data["deliveries"].values():
+            record.pop("batch_date", None)
+        # Legacy subscribers could have skipped earlier batches while paused.
+        del self.store.data["deliveries"][f"daily:{NOW.date().isoformat()}:{self.subscriber['id']}"]
+        self.assertEqual(next_batch_number(self.store.load(), self.subscriber), 3)
+        self.run_mailer(NOW + timedelta(days=2))
+        self.assertEqual(next_batch_number(self.store.data, self.subscriber), 4)
 
 
 if __name__ == "__main__":
